@@ -1,0 +1,199 @@
+<project name="AsyncTask Counter" default="app">
+    <description>
+        AsyncTask Counter in an Event Handler in Android apps.
+    </description>
+
+    <property file="local.properties"/>
+    <property file="project.properties"/>
+
+    <property environment="env"/>
+
+    <condition property="android.sdk" value="${env.ANDROID_HOME}">
+        <isset property="env.ANDROID_HOME"/>
+    </condition>
+
+    <condition property="android.api.version" value="${env.ANDROID_API_VERSION}">
+        <isset property="env.ANDROID_API_VERSION"/>
+    </condition>
+
+    <fail message="Please make sure that android executable is in your system path">
+        <condition>
+            <not>
+                <available file="android" filepath="${env.PATH}"/>
+            </not>
+        </condition>
+    </fail>
+
+    <property name="package.name" value=""/>
+    <property name="android.jar" location="${android.sdk}/platforms/android-${android.api.version}/android.jar"/>
+
+    <basename property="app-name" file="${apk}" suffix=".apk"/>
+
+    <property name="lib" location="lib"/>
+    <property name="bin" location="bin"/>
+
+    <property name="build" location="build"/>
+    <property name="output" location="logcatOutputs"/>
+
+    <property name="counter-home" location="counter"/>
+    <property name="instrumentor-home" location="instrumentor"/>
+
+    <property name="key-alias" value="my_alias"/>
+    <property name="key-store" value="${build}/my.keystore"/>
+    <property name="key-storepass" value="abcdefg"/>
+    <property name="key-pass" value="abcdefg"/>
+
+    <available property="keystore-generated" file="${build}/my.keystore"/>
+
+    <uptodate property="instrumented-app-up-to-date"
+              targetfile="${build}/${app-name}.apk">
+        <srcresources>
+            <file file="${apk}"/>
+            <fileset dir="${instrumentor-home}/src">
+                <include name="**/*.java"/>
+            </fileset>
+            <fileset dir="${counter-home}/src">
+                <include name="**/*.java"/>
+            </fileset>
+            <file file="${build}/instrumentor.jar"/>
+            <file file="${build}/counter.jar"/>
+        </srcresources>
+    </uptodate>
+
+    <target name="app" depends="instrument-app" if="apk"/>
+
+    <target name="compile" depends="check">
+        <antcall target="instrumentor">
+            <param name="target" value="compile"/>
+        </antcall>
+
+        <antcall target="counter">
+            <param name="target" value="dex"/>
+        </antcall>
+
+        <copy file="${instrumentor-home}/build/instrumentor.jar" todir="${build}"/>
+        <copy file="${counter-home}/build/counter.dex" todir="${build}"/>
+    </target>
+
+    <target name="check">
+        <fail message="Please define 'package.name' parameter">
+            <condition>
+                <equals arg1="${package.name}" arg2=""/>
+            </condition>
+        </fail>
+    </target>
+
+    <target name="instrument-app" depends="compile,generate-keystore"
+            if="apk"
+            unless="instrumented-app-up-to-date">
+
+        <echo message="(Re)instrumenting ${app-name}"/>
+        <unzip src="${apk}" dest="${build}/${app-name}-extracted"/>
+        <mkdir dir="${build}/${app-name}-decoded"/>
+        <java jar="${lib}/apktool.jar" fork="true">
+            <arg value="d"/>
+            <arg value="-f"/>
+            <arg value="-o"/>
+            <arg value="${build}/${app-name}-decoded"/>
+            <arg value="${apk}"/>
+        </java>
+        <mkdir dir="${build}/${app-name}-merged"/>
+        <java classname="com.android.dx.merge.DexMerger" classpath="${lib}/dx.jar">
+            <arg value="${build}/${app-name}-merged/classes.dex"/>
+            <arg value="${build}/${app-name}-extracted/classes.dex"/>
+            <arg value="${build}/counter.dex"/>
+        </java>
+        <condition property="decoded-assets" value="-A ${build}/${app-name}-decoded/assets/" else="">
+            <available file="${build}/${app-name}-decoded/assets/" type="dir"/>
+        </condition>
+        <exec executable="aapt" dir="${build}/${app-name}-merged" failonerror="true">
+            <arg value="package"/>
+            <arg value="-f"/>
+            <arg value="-M"/>
+            <arg value="${build}/${app-name}-decoded/AndroidManifest.xml"/>
+            <arg line="${decoded-assets}"/>
+            <arg value="-S"/>
+            <arg value="${build}/${app-name}-decoded/res/"/>
+            <arg value="-I"/>
+            <arg value="${android.jar}"/>
+            <arg value="--min-sdk-version"/>
+            <arg value="${android.api.version}"/>
+            <arg value="--target-sdk-version"/>
+            <arg value="${android.api.version}"/>
+            <arg value="-F"/>
+            <arg value="${build}/${app-name}.apk"/>
+        </exec>
+        <exec executable="aapt" dir="${build}/${app-name}-merged" failonerror="true">
+            <arg value="add"/>
+            <arg value="-f"/>
+            <arg value="${build}/${app-name}.apk"/>
+            <arg value="classes.dex"/>
+        </exec>
+        <delete dir="sootOutput"/>
+        <java classname="instrumentor.TraceRecBodyTransformer">
+            <classpath>
+                <pathelement path="${classpath}"/>
+                <pathelement path="${android.jar}"/>
+                <pathelement path="${build}/instrumentor.jar"/>
+                <pathelement path="${lib}/soot.jar"/>
+            </classpath>
+            <arg value="${build}/${app-name}.apk"/>
+            <arg value="${android.sdk}/platforms"/>
+            <arg value="${package.name}" />
+        </java>
+        <move file="sootOutput/${app-name}.apk" tofile="${build}/${app-name}.apk"/>
+        <delete dir="sootOutput"/>
+        <signjar jar="${build}/${app-name}.apk"
+                 alias="${key-alias}" keystore="${key-store}"
+                 storepass="${key-storepass}" keypass="${key-pass}"/>
+        <echo message="Instrumented ${app-name} is ${build}/${app-name}.apk"/>
+    </target>
+
+    <target name="generate-keystore" unless="keystore-generated">
+        <echo message="Regenerating keystore ${key-store}"/>
+        <exec executable="keytool">
+            <arg value="-genkey"/>
+            <arg value="-keyalg"/>
+            <arg value="RSA"/>
+            <arg value="-keysize"/>
+            <arg value="2048"/>
+            <arg value="-validity"/>
+            <arg value="10000"/>
+            <arg value="-noprompt"/>
+            <arg value="-dname"/>
+            <arg value="CN=a, OU=b, O=c, L=d, S=e, C=f"/>
+            <arg value="-alias"/>
+            <arg value="${key-alias}"/>
+            <arg value="-keystore"/>
+            <arg value="${key-store}"/>
+            <arg value="-storepass"/>
+            <arg value="${key-storepass}"/>
+            <arg value="-keypass"/>
+            <arg value="${key-pass}"/>
+        </exec>
+    </target>
+
+    <target name="clean" description="Delete all generated files.">
+        <antcall target="instrumentor">
+            <param name="target" value="clean"/>
+        </antcall>
+        <antcall target="counter">
+            <param name="target" value="clean" />
+        </antcall>
+        <delete dir="${output}"/>
+        <delete dir="${build}" />
+    </target>
+
+    <target name="instrumentor">
+        <ant dir="${instrumentor-home}" target="${target}" inheritAll="false">
+        </ant>
+    </target>
+
+    <target name="counter">
+        <ant dir="${counter-home}" target="${target}" inheritAll="false">
+            <property name="norecurse" value="true"/>
+        </ant>
+    </target>
+
+
+</project>
