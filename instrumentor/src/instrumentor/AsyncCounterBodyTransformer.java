@@ -6,7 +6,7 @@ import soot.util.Chain;
 
 import java.util.*;
 
-public class TraceRecBodyTransformer extends BodyTransformer {
+public class AsyncCounterBodyTransformer extends BodyTransformer {
 
     private SootClass asyncTaskCounterClass, handlerClass, messageClass;
     private SootMethod incrementAsyncTaskMethod, incrementMsgTaskMethod, getCurrentEventIdMethod, setCurrentEventIdMethod, checkAndSetEventIdMethod;
@@ -27,7 +27,7 @@ public class TraceRecBodyTransformer extends BodyTransformer {
         //packageName = args[2];
 
         PackManager.v().getPack("jtp").add(
-                new Transform("jtp.myInstrumenter", new TraceRecBodyTransformer(args[2])));
+                new Transform("jtp.myInstrumenter", new AsyncCounterBodyTransformer(args[2])));
 
         soot.Main.main(new String[]{
                 "-debug",
@@ -45,7 +45,7 @@ public class TraceRecBodyTransformer extends BodyTransformer {
         });
     }
 
-    public TraceRecBodyTransformer(String packName) {
+    public AsyncCounterBodyTransformer(String packName) {
         packageName = packName;
     }
 
