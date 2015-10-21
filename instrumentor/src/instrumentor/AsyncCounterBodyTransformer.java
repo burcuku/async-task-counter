@@ -86,6 +86,7 @@ public class AsyncCounterBodyTransformer extends BodyTransformer {
             instrumentEventHandlerMethod(b, methodName, className);
 
         instrumentMethod(b, methodName, className);
+
     }
 
     private boolean isEventHandler(String methodName, SootClass clazz) {
@@ -206,7 +207,7 @@ public class AsyncCounterBodyTransformer extends BodyTransformer {
                     SootClass invokedMethodClass = stmt.getInvokeExpr().getMethod().getDeclaringClass();
                     String invokedMethodClassName = invokedMethodClass.getName();
 
-                    if (invokedMethodName.equals("execute") && invokedMethodClassName.equals("android.os.AsyncTask")) {
+                    if ((invokedMethodName.equals("execute") || invokedMethodName.equals("executeOnExecutor")) && invokedMethodClassName.equals("android.os.AsyncTask")) {
                         units.insertBefore(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(incrementAsyncTaskMethod.makeRef())), stmt);
                         System.out.println("===========AsyncTask increment stmt added in: " + methodName + " of " + className);
                     } else if (invokedMethodName.contains("sendMessage") && SootUtils.hasParentClass(invokedMethodClass, handlerClass)) {
