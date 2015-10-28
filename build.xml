@@ -130,7 +130,7 @@
             <arg value="classes.dex"/>
         </exec>
         <delete dir="sootOutput"/>
-        <java classname="instrumentor.TraceRecBodyTransformer">
+        <java classname="instrumentor.StaticAsyncCounterBodyTransformer">
             <classpath>
                 <pathelement path="${classpath}"/>
                 <pathelement path="${android.jar}"/>

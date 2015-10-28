@@ -1,12 +1,13 @@
 package instrumentor;
 
+
 import soot.*;
 import soot.jimple.*;
 import soot.util.Chain;
 
 import java.util.*;
 
-public class AsyncCounterBodyTransformer extends BodyTransformer {
+public class DynamicAsyncTaskCounterBodyTransformer extends BodyTransformer{
 
     private SootClass asyncTaskCounterClass, handlerClass, messageClass;
     private SootMethod incrementAsyncTaskMethod, incrementMsgTaskMethod, getCurrentEventIdMethod, setCurrentEventIdMethod, checkAndSetEventIdMethod;
@@ -27,16 +28,11 @@ public class AsyncCounterBodyTransformer extends BodyTransformer {
         //packageName = args[2];
 
         PackManager.v().getPack("jtp").add(
-                new Transform("jtp.myInstrumenter", new AsyncCounterBodyTransformer(args[2])));
+                new Transform("jtp.myInstrumenter", new DynamicAsyncTaskCounterBodyTransformer(args[2])));
 
         soot.Main.main(new String[]{
                 "-debug",
                 "-prepend-classpath",
-                /////////"-cp", "/Users/burcukulahciogluozkan/EvSerChecker/asyncRob/ser/instrumentor",
-                //"-process-dir", "/Users/burcukulahciogluozkan/EvSerChecker/apks",
-
-                //"-process-dir", "/Users/burcukulahciogluozkan/EvSerChecker/apks/sample_vlillechecker.apk",
-                //"-android-jars", "/Users/burcukulahciogluozkan/adt-bundle/sdk/platforms",
                 "-process-dir", args[0],
                 "-android-jars", args[1],
                 "-src-prec", "apk",
@@ -45,7 +41,7 @@ public class AsyncCounterBodyTransformer extends BodyTransformer {
         });
     }
 
-    public AsyncCounterBodyTransformer(String packName) {
+    public DynamicAsyncTaskCounterBodyTransformer(String packName) {
         packageName = packName;
     }
 
@@ -86,7 +82,6 @@ public class AsyncCounterBodyTransformer extends BodyTransformer {
             instrumentEventHandlerMethod(b, methodName, className);
 
         instrumentMethod(b, methodName, className);
-
     }
 
     private boolean isEventHandler(String methodName, SootClass clazz) {

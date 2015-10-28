@@ -21,7 +21,7 @@
 
     <jar destfile="${build}/instrumentor.jar" basedir="${build}/classes" includes="**">
       <manifest>
-        <attribute name="Main-Class" value="instrumentor.AsyncCounterBodyTransformer"/>
+        <attribute name="Main-Class" value="instrumentor.StaticAsyncCounterBodyTransformer"/>
       </manifest>
     </jar>
   </target>
